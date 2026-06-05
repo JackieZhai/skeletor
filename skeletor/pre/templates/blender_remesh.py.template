@@ -17,7 +17,12 @@ if __name__ == '__main__':
     mesh_post = os.path.abspath(r'$MESH_POST')
 
     for filename in mesh_pre:  # use data.objects instead of context.scene.objects
-        bpy.ops.import_mesh.stl(filepath=os.path.abspath(filename))
+        try:
+            # blender <4.0
+            bpy.ops.import_mesh.stl(filepath=os.path.abspath(filename))
+        except AttributeError:
+            # blender 4.0 replaced this with a new operator
+            bpy.ops.wm.stl_import(filepath=os.path.abspath(filename))
 
     mesh = bpy.data.objects[0]
     # Make sure mesh is the active object
@@ -33,9 +38,20 @@ if __name__ == '__main__':
     mod.voxel_size = $VOXEL_SIZE
     mod.adaptivity = $ADAPTIVITY
 
-    bpy.ops.object.modifier_apply(modifier=mod.name)
+    try:
+        # blender >=2.90
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    except TypeError:
+        # blender <2.90 required apply_as
+        bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
 
-    bpy.ops.export_mesh.stl(
-        filepath=mesh_post,
-        use_mesh_modifiers=True)
-
+    try:
+        # blender <4.0
+        bpy.ops.export_mesh.stl(
+            filepath=mesh_post,
+            use_mesh_modifiers=True)
+    except AttributeError:
+        # blender 4.0 replaced this with a new operator
+        bpy.ops.wm.stl_export(
+            filepath=mesh_post,
+            apply_modifiers=True)

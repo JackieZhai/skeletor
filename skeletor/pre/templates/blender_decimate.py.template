@@ -11,14 +11,16 @@ if __name__ == '__main__':
         pass
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=True)
-
     # get temporary files from templated locations
     mesh_pre = $MESH_PRE
     mesh_post = os.path.abspath(r'$MESH_POST')
-
     for filename in mesh_pre:  # use data.objects instead of context.scene.objects
-        bpy.ops.import_mesh.stl(filepath=os.path.abspath(filename))
-
+        try:
+            # blender <4.0
+            bpy.ops.import_mesh.stl(filepath=os.path.abspath(filename))
+        except AttributeError:
+            # blender 4.0 replaced this with a new operator
+            bpy.ops.wm.stl_import(filepath=os.path.abspath(filename))
     mesh = bpy.data.objects[0]
     # Make sure mesh is the active object
     try:
@@ -27,15 +29,24 @@ if __name__ == '__main__':
     except AttributeError:
         # blender 2.8 changed this
         bpy.context.view_layer.objects.active = mesh
-
     # add decimate modifier
     mod = mesh.modifiers.new('decimate', 'DECIMATE')
     mod.decimate_type = 'COLLAPSE'
     mod.ratio = $RATIO
     mod.use_collapse_triangulate = True
-
-    bpy.ops.object.modifier_apply(modifier=mod.name)
-
-    bpy.ops.export_mesh.stl(
-        filepath=mesh_post,
-        use_mesh_modifiers=True)
+    try:
+        # blender >=2.90
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    except TypeError:
+        # blender <2.90 required apply_as
+        bpy.ops.object.modifier_apply(apply_as='DATA', modifier=mod.name)
+    try:
+        # blender <4.0
+        bpy.ops.export_mesh.stl(
+            filepath=mesh_post,
+            use_mesh_modifiers=True)
+    except AttributeError:
+        # blender 4.0 replaced this with a new operator
+        bpy.ops.wm.stl_export(
+            filepath=mesh_post,
+            apply_modifiers=True)
